@@ -36,9 +36,8 @@ jobs:
 
       - name: Install Capacitor Android
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
           
-
+npm install @capacitor/core@6.2.1 @capacitor/cli@6.2.1 @capacitor/android@6.2.1 --legacy-peer-deps
       - name: Build Web App
         run: npm run build
 
