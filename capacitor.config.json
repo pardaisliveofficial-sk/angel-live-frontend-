@@ -1,0 +1,10 @@
+{
+  "appId": "com.angel.live",
+  "appName": "Angel Live",
+  "webDir": "dist",
+  "server": {
+    "url": "https://app.angellive.soulverseapps.com/",
+    "cleartext": false,
+    "androidScheme": "https"
+  }
+}
