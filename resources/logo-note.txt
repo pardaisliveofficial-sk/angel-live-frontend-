@@ -1,0 +1,1 @@
+Place Angel Live logo as icon.png (1024x1024) in resources before running capacitor-assets.
