@@ -1,49 +1,45 @@
 name: Build Angel Live APK
-
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
-
+    branches: [main]
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-
+          node-version: 20
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-
-      - name: Install dependencies
+      - name: Install Capacitor
         run: npm install --legacy-peer-deps
-
-      - name: Build web
-        run: npm run build
-
-      - name: Install Capacitor Android
-        run: npm install @capacitor/android@6.2.1 @capacitor/cli@6.2.1 @capacitor/core@6.2.1 --legacy-peer-deps
-
-      - name: Capacitor setup
+      - name: Add Android
+        run: npx cap add android
+      - name: Generate assets
+        run: npx capacitor-assets generate --android
+      - name: Sync
+        run: npx cap sync android
+      - name: Android permissions
         run: |
-          npx cap add android || true
-          npx cap sync android
-          npx cap copy android
-
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          marker='<uses-permission android:name="android.permission.CAMERA" />'
+          if marker not in s:
+              s=s.replace('<application', marker+'\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <application',1)
+          p.write_text(s)
+          PY
       - name: Build APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
-
+          ./gradlew assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: Angel-Live-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          
