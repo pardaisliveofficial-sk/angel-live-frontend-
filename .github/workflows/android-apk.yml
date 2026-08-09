@@ -9,75 +9,67 @@ jobs:
   build:
     name: Build Angel Live APK
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-
       - name: Remove stale Capacitor configs
-        shell: bash
         run: |
           rm -f capacitor.config.ts capacitor.config.js
-          find . -name "capacitor.config.ts" -o -name "capacitor.config.js" | xargs -r rm -f
-
+          find . -name "capacitor.config.ts" -delete
+          find . -name "capacitor.config.js" -delete
       - name: Install dependencies
         run: npm install --legacy-peer-deps
-
-      - name: Ensure Capacitor and TypeScript
+      - name: Ensure Capacitor packages
         run: |
-          npm install --save-dev typescript @capacitor/cli@6.2.1 @capacitor/android@6.2.1 @capacitor/assets@3.0.5 --legacy-peer-deps
           npm install @capacitor/core@6.2.1 --legacy-peer-deps
-
-      - name: Build web
-        run: npm run build
-
-      - name: Verify Capacitor config
+          npm install --save-dev @capacitor/cli@6.2.1 @capacitor/android@6.2.1 @capacitor/assets@3.0.5 typescript@5.7.2 --legacy-peer-deps
+      - name: Create dist for Capacitor
+        run: |
+          rm -rf dist
+          mkdir -p dist
+          cat > dist/index.html <<'EOF'
+          <!doctype html>
+          <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+          <body><script>location.replace("https://app.angellive.soulverseapps.com/");</script></body>
+          </html>
+          EOF
+      - name: Verify web files
         run: |
           test -f capacitor.config.json
-          cat capacitor.config.json
           test -d dist
-
+          test -f dist/index.html
+          cat capacitor.config.json
       - name: Add Android platform
         run: npx cap add android
-
       - name: Generate Angel Live assets
         run: |
           if [ -f resources/icon.png ]; then
             npx capacitor-assets generate
           else
-            echo "resources/icon.png not present; keeping generated/default Android launcher assets."
+            echo "No resources/icon.png; using default Android assets."
           fi
-
       - name: Sync Capacitor
-        run: |
-          npx cap sync android
-          npx cap copy android
-
+        run: npx cap sync android
       - name: Add Android permissions
-        shell: bash
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
           grep -q 'android.permission.INTERNET' "$MANIFEST" || sed -i '/<manifest /a <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST"
           grep -q 'android.permission.CAMERA' "$MANIFEST" || sed -i '/<manifest /a <uses-permission android:name="android.permission.CAMERA" />' "$MANIFEST"
           grep -q 'android.permission.RECORD_AUDIO' "$MANIFEST" || sed -i '/<manifest /a <uses-permission android:name="android.permission.RECORD_AUDIO" />' "$MANIFEST"
-
       - name: Build Debug APK
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
