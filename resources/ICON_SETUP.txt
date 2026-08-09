@@ -1,0 +1,4 @@
+For final launcher icon, place the Angel Live PNG as:
+resources/icon.png
+
+Then generate Android assets with capacitor-assets.
