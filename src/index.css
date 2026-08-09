@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* STYLES */
+
+
+/* Premium UI Theme */
+:root{
+  --bg1:#0b1020;
+  --bg2:#1b1145;
+  --accent1:#6d5dfc;
+  --accent2:#ff4fa3;
+  --accent3:#ff9d2f;
+}
+body{
+  background:linear-gradient(135deg,var(--bg1),var(--bg2));
+  color:#fff;
+}
+button{
+  border-radius:16px;
+  background:linear-gradient(90deg,var(--accent1),var(--accent2));
+  box-shadow:0 10px 30px rgba(109,93,252,.35);
+  transition:.25s ease;
+}
+button:hover{transform:translateY(-2px) scale(1.02);}
+.card,.panel{
+  background:rgba(255,255,255,.08);
+  backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:22px;
+}

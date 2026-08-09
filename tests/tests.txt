@@ -1,0 +1,61 @@
+# Tests
+## Test 1 - Angel Live authentication and home flow loads [sanity]
+Viewport: mobile
+Description: Verify Angel Live authentication creates or restores one persistent production user record and automatically resumes the signed-in session when an Android APK/WebView returns from the Google authentication window.
+Steps:
+1. Open the app
+2. Wait for the main screen
+3. Accept terms, enter user@example.com, tap Send Email OTP Code
+Expected: Successful authentication opens Angel Live; returning to the APK after Google authentication automatically rechecks the session instead of leaving the user stuck on a dead auth window; Profile uses persistent backend identity and displays the real backend level, including LV.0 for a zero-level account.
+## Test 2 - Create Party 12-seat room flow
+Viewport: mobile
+Description: Verify Create Party keeps public party behavior and Create Room now creates a 2/3/4-seat realtime voice room without password or joining-code setup.
+Steps:
+1. Open the app, continue to Home, tap Create Party and choose 2, 3, 4, 8 or 12 seats
+2. Create the party and verify the selected seat count with one host and the remaining seats empty
+3. Join from another user, tap an empty seat and verify a seat request appears for the host with Accept and Reject
+4. Open Gift Box and verify PNG/SVG thumbnails; send an SVGA or WebM animation gift and verify it plays as a transparent overlay without covering the app with a black background
+Expected: Public Party behavior remains unchanged; Gift Box supports PNG/SVG thumbnails, transparent SVGA/WebM gift animations, and an independent SVG/PNG frame layer; Create Room remains no-code realtime voice and stays active until host ends it.
+## Test 3 - Party host leave and end controls
+Viewport: mobile
+Description: Verify realtime live mode sync: a viewer who joins in Solo automatically follows the host into Guest, 1 VS 1 and PK without leaving or rejoining, while accepted Video Guests keep real camera and microphone audio.
+Steps:
+1. Sign in with Google using an account that has a profile picture, then open Profile
+2. Tap Leave and verify the confirmation says the party keeps running
+3. Cancel, tap End and verify the confirmation says the room closes for everyone
+Expected: The same viewer session automatically changes layout whenever the host changes Solo/Guest/1 VS 1/PK mode; Guest mode shows current guest seats and lets a viewer request an empty guest slot; accepted guests publish camera/mic and all viewers continue seeing realtime mode/media updates.
+## Test 4 - Inbox WhatsApp-style chat
+Viewport: mobile
+Description: Verify Inbox uses real Angel Live users and persistent 1-to-1 conversations with realtime delivery, timestamps and unread counts.
+Steps:
+1. Open the app and continue to Inbox
+2. Search for another real Angel Live user by name, username or Angel ID and open their profile
+3. Tap Message and type a message
+4. Verify plus attachment, camera and microphone/send controls are available
+Expected: User can find a real account, open chat, send a persistent message, see its timestamp, and the recipient receives the message in real time with an unread count in Inbox.
+## Test 5 - Chat history and message management
+Viewport: mobile
+Description: Verify persistent conversation and individual-message management controls work on backend messages.
+Steps:
+1. Open Inbox and enter a conversation
+2. Open the top three-dot menu and verify chat management controls
+3. Send a message and verify individual message controls
+Expected: Sent messages persist after reopening chat; sender can edit or delete-for-everyone a message and realtime chat updates reflect the change for the other user.
+## Test 6 - Profile DP persistence and preview
+Viewport: mobile
+Description: Verify Google profile picture becomes the initial Angel Live DP, while Edit Profile can replace it with a persistent custom DP.
+Steps:
+1. Sign in with Google using an account that has a profile picture, then open Profile
+2. From Profile, tap the circular profile picture area; it must immediately open Profile Picture choices whether the current DP is Google/default/custom, then choose Upload Picture and select a gallery image
+3. Verify the selected image appears in the circular DP, tap it to open the image preview, then close/back to Profile
+Expected: A new Google-authenticated account initially shows the Google account profile picture as its Angel Live DP; after Edit Profile changes the DP, the custom uploaded image takes priority, persists after navigation/refresh, and remains tappable for preview.
+## Test 7 - Central Plus create menu production flows
+Viewport: mobile
+Description: Verify the center Plus button is enabled on every bottom-navigation tab and routes all four actions into real production creation flows.
+Steps:
+1. Tap the center Plus button and verify Go Live, Upload Reel, Upload Story and Start a Party are shown
+2. Open Go Live and verify purpose plus camera, microphone and live-submission controls are required before Start Solo Live
+3. Open Upload Reel and verify its existing Record Video, Upload from Gallery, caption and Public/Private controls remain available; do not substitute a non-video test file
+4. Open Upload Story, tap Upload from Gallery, select a gallery photo or video and publish it with Public or Private visibility
+5. Open Start a Party, choose 2, 3, 4, 8 or 12 seats and create the party
+Expected: Plus/create flows remain available; Video Guest mode uses real Agora media so accepted guests publish camera and microphone in real time and host/viewers subscribe to guest video/audio; gifting still supports PNG/SVG thumbnails, transparent SVGA/WebM animations and SVG/PNG frames.
