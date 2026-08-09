@@ -1,2 +1,1 @@
-# angel-live-frontend-
-Angel by soulverseapps
+Angel Live Android wrapper. It loads the same production frontend at https://app.angellive.soulverseapps.com/ so the APK uses the existing live frontend/backend/Agora/R2 setup.
