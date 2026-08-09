@@ -4,6 +4,8 @@
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {
-    "androidScheme": "https"
+    "url": "https://app.angellive.soulverseapps.com",
+    "androidScheme": "https",
+    "cleartext": false
   }
 }
