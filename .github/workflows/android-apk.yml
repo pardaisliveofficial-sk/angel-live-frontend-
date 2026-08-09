@@ -2,6 +2,8 @@ name: Build Angel Live APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
   build:
@@ -13,7 +15,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
+          cache: npm
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -21,13 +24,13 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Install packages
+      - name: Install dependencies
         run: npm install
 
-      - name: Build Web
+      - name: Build web app
         run: npm run build
 
-      - name: Add Android
+      - name: Setup Capacitor Android
         run: |
           npx cap add android || true
           npx cap sync android
@@ -41,3 +44,4 @@ jobs:
         with:
           name: angel-live-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          
