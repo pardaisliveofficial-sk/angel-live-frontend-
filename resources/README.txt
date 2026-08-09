@@ -1,0 +1,1 @@
+Put Angel Live PNG logo here as icon.png (1024x1024). Workflow runs capacitor-assets generation before APK build.
