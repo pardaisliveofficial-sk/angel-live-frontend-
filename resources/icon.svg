@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<rect width="1024" height="1024" fill="#000000"/>
+<text x="512" y="850" text-anchor="middle" fill="#ffffff" font-family="serif" font-size="112" font-weight="bold">ANGEL LIVE</text>
+<circle cx="512" cy="430" r="170" fill="#8fdcff" fill-opacity=".9"/>
+<ellipse cx="512" cy="430" rx="300" ry="95" fill="none" stroke="#ffd66b" stroke-width="20"/>
+<path d="M340 500 C210 390 130 440 105 540 C215 525 285 560 360 610" fill="#c9edff" stroke="#7ecbff" stroke-width="10"/>
+<path d="M684 500 C814 390 894 440 919 540 C809 525 739 560 664 610" fill="#c9edff" stroke="#7ecbff" stroke-width="10"/>
+</svg>
