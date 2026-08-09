@@ -3,14 +3,11 @@ name: Build Angel Live Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
-
-permissions:
-  contents: read
+    branches: [main]
 
 jobs:
   build:
-    name: Build Angel Live Android APK
+    name: Build Angel Live APK
     runs-on: ubuntu-latest
 
     steps:
@@ -28,51 +25,58 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Remove stale Capacitor configs
+        shell: bash
+        run: |
+          rm -f capacitor.config.ts capacitor.config.js
+          find . -name "capacitor.config.ts" -o -name "capacitor.config.js" | xargs -r rm -f
+
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Install Capacitor Assets
-        run: npm install --no-save @capacitor/assets@3.0.2 --legacy-peer-deps
+      - name: Ensure Capacitor and TypeScript
+        run: |
+          npm install --save-dev typescript @capacitor/cli@6.2.1 @capacitor/android@6.2.1 @capacitor/assets@3.0.5 --legacy-peer-deps
+          npm install @capacitor/core@6.2.1 --legacy-peer-deps
+
+      - name: Build web
+        run: npm run build
 
       - name: Verify Capacitor config
         run: |
           test -f capacitor.config.json
-          node -e "const c=require('./capacitor.config.json'); console.log(c)"
+          cat capacitor.config.json
+          test -d dist
 
       - name: Add Android platform
         run: npx cap add android
 
-      - name: Generate Angel Live icon and splash
-        run: npx capacitor-assets generate --android
+      - name: Generate Angel Live assets
+        run: |
+          if [ -f resources/icon.png ]; then
+            npx capacitor-assets generate
+          else
+            echo "resources/icon.png not present; keeping generated/default Android launcher assets."
+          fi
 
       - name: Sync Capacitor
-        run: npx cap sync android
+        run: |
+          npx cap sync android
+          npx cap copy android
 
       - name: Add Android permissions
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path("android/app/src/main/AndroidManifest.xml")
-          s=p.read_text()
-          perms=[
-            '<uses-permission android:name="android.permission.INTERNET" />',
-            '<uses-permission android:name="android.permission.CAMERA" />',
-            '<uses-permission android:name="android.permission.RECORD_AUDIO" />',
-            '<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />'
-          ]
-          marker="<application"
-          additions="\n".join(x for x in perms if x not in s)
-          if additions:
-              s=s.replace(marker, additions+"\n"+marker, 1)
-          p.write_text(s)
-          PY
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          grep -q 'android.permission.INTERNET' "$MANIFEST" || sed -i '/<manifest /a <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST"
+          grep -q 'android.permission.CAMERA' "$MANIFEST" || sed -i '/<manifest /a <uses-permission android:name="android.permission.CAMERA" />' "$MANIFEST"
+          grep -q 'android.permission.RECORD_AUDIO' "$MANIFEST" || sed -i '/<manifest /a <uses-permission android:name="android.permission.RECORD_AUDIO" />' "$MANIFEST"
 
       - name: Build Debug APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
