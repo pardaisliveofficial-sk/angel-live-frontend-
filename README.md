@@ -1,9 +1,10 @@
-# Angel Live Android
+# Angel Live Firebase Native Google Auth Integration
 
-This Android build is a native shell for the live Angel Live web application.
+This update pack is for `pardaisliveofficial-sk/angel-live-frontend-`.
 
-Production URL: https://app.angellive.soulverseapps.com/
+## Files
+- `google-services.json` — Firebase Android configuration for package `com.angellive.app`.
+- `src/runtime-bridge.ts` — keeps AppDeploy auth for web and uses the native Android Google/Firebase bridge in APK builds.
+- `.github/workflows/android-apk.yml` — clean Capacitor 6 build, Firebase setup, native Google Sign-In bridge, and APK artifact.
 
-The native shell uses an Android Custom Tab for authentication and the web app so Google/AppDeploy authentication runs in a normal browser context instead of an embedded WebView popup. This avoids the Android WebView popup/opener failure.
-
-The GitHub Actions workflow builds a debug APK and uploads it as an artifact.
+Replace the repository `src/runtime-bridge.ts` and workflow with these files, and keep `google-services.json` at repository root. The workflow copies it into `android/app/` during the build.
