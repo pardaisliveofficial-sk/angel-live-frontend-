@@ -1,0 +1,153 @@
+name: Build Angel Live APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build Angel Live Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Build web
+        run: npm run build
+
+      - name: Install Capacitor CLI
+        run: npm install --save-dev @capacitor/cli@6.2.0 --legacy-peer-deps --no-audit --no-fund
+
+      - name: Ensure Capacitor config
+        shell: bash
+        run: |
+          cat > capacitor.config.ts <<'EOF'
+          import type { CapacitorConfig } from '@capacitor/cli';
+          const config: CapacitorConfig = { appId: 'com.angellive.app', appName: 'Angel Live', webDir: 'dist', bundledWebRuntime: false, server: { androidScheme: 'https' } };
+          export default config;
+          EOF
+
+      - name: Reset Android project
+        shell: bash
+        run: |
+          rm -rf android
+          npx cap add android
+
+      - name: Add Firebase config
+        shell: bash
+        run: |
+          test -f google-services.json
+          cp google-services.json android/app/google-services.json
+
+      - name: Configure Google Services
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/build.gradle'); s=p.read_text()
+          if 'com.google.gms:google-services' not in s:
+              marker="dependencies {"
+              s=s.replace(marker, marker+"\n        classpath 'com.google.gms:google-services:4.4.2'",1)
+          p.write_text(s)
+          p=Path('android/app/build.gradle'); s=p.read_text()
+          if "com.google.gms.google-services" not in s:
+              s += "\napply plugin: 'com.google.gms.google-services'\n"
+          p.write_text(s)
+          PY
+
+      - name: Add Firebase and Google Sign-In dependencies
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/build.gradle'); s=p.read_text()
+          if 'play-services-auth' not in s:
+              marker='dependencies {'
+              deps="""dependencies {
+              implementation 'com.google.android.gms:play-services-auth:21.3.0'
+              implementation 'com.google.firebase:firebase-auth:24.0.1'
+          """
+              s=s.replace(marker,deps,1)
+          p.write_text(s)
+          PY
+
+      - name: Install native Google auth bridge
+        shell: bash
+        run: |
+          mkdir -p android/app/src/main/java/com/angellive/app
+          cat > android/app/src/main/java/com/angellive/app/GoogleAuthBridge.java <<'JAVA'
+          package com.angellive.app;
+          import android.app.Activity;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.WebView;
+          import com.google.android.gms.auth.api.signin.GoogleSignIn;
+          import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+          import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+          import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+          import com.google.android.gms.common.api.ApiException;
+          import com.google.android.gms.tasks.Tasks;
+          import com.google.firebase.auth.AuthCredential;
+          import com.google.firebase.auth.FirebaseAuth;
+          import com.google.firebase.auth.GoogleAuthProvider;
+          import java.util.concurrent.Executors;
+          import org.json.JSONObject;
+          public final class GoogleAuthBridge {
+            private final Activity activity; private final WebView webView; private final GoogleSignInClient client; private final FirebaseAuth firebase;
+            public GoogleAuthBridge(Activity a, WebView w){ activity=a; webView=w; firebase=FirebaseAuth.getInstance(); GoogleSignInOptions o=new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestIdToken(a.getString(com.angellive.app.R.string.default_web_client_id)).requestEmail().build(); client=GoogleSignIn.getClient(a,o); }
+            @JavascriptInterface public void signIn(final String callbackId){ activity.runOnUiThread(()->{ activity.startActivityForResult(client.getSignInIntent(),9001); webView.setTag(callbackId); }); }
+            public void handleResult(int requestCode,int resultCode,android.content.Intent data){ if(requestCode!=9001)return; final Object tag=webView.getTag(); final String callbackId=tag==null?"":tag.toString(); Executors.newSingleThreadExecutor().execute(()->{ try{ GoogleSignInAccount account=GoogleSignIn.getSignedInAccountFromIntent(data).getResult(ApiException.class); AuthCredential credential=GoogleAuthProvider.getCredential(account.getIdToken(),null); Tasks.await(firebase.signInWithCredential(credential)); String token=Tasks.await(firebase.getCurrentUser().getIdToken(true)).getToken(); JSONObject u=new JSONObject(); u.put("userId",firebase.getCurrentUser().getUid()); u.put("email",account.getEmail()==null?"":account.getEmail()); u.put("name",account.getDisplayName()==null?"":account.getDisplayName()); u.put("picture",account.getPhotoUrl()==null?"":account.getPhotoUrl().toString()); JSONObject out=new JSONObject(); out.put("callbackId",callbackId); out.put("ok",true); out.put("accessToken",token); out.put("user",u); finish(out.toString()); }catch(Exception e){ try{ JSONObject out=new JSONObject();out.put("callbackId",callbackId);out.put("ok",false);out.put("error",e.getMessage()==null?"Google authentication failed":e.getMessage());finish(out.toString()); }catch(Exception ignored){} } }); }
+            private void finish(String json){ final String encoded=android.util.Base64.encodeToString(json.getBytes(java.nio.charset.StandardCharsets.UTF_8),android.util.Base64.NO_WRAP); activity.runOnUiThread(()->webView.evaluateJavascript("window.__angelNativeGoogleAuth && window.__angelNativeGoogleAuth('"+encoded+"')",null)); }
+          }
+          JAVA
+
+      - name: Patch MainActivity
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/java/com/angellive/app/MainActivity.java')
+          if not p.exists():
+              raise SystemExit('MainActivity.java not found')
+          s=p.read_text()
+          if 'GoogleAuthBridge' not in s:
+              s=s.replace('import android.os.Bundle;','import android.os.Bundle;\nimport android.content.Intent;\nimport android.webkit.WebView;')
+              s=s.replace('public class MainActivity extends BridgeActivity {','public class MainActivity extends BridgeActivity {\n    private GoogleAuthBridge googleAuthBridge;')
+              s=s.replace('super.onCreate(savedInstanceState);','super.onCreate(savedInstanceState);\n        WebView w = getBridge().getWebView();\n        googleAuthBridge = new GoogleAuthBridge(this, w);\n        w.addJavascriptInterface(googleAuthBridge, "AndroidGoogleAuth");',1)
+              s=s.replace('\n}', '\n    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) { super.onActivityResult(requestCode, resultCode, data); if (googleAuthBridge != null) googleAuthBridge.handleResult(requestCode, resultCode, data); }\n}\n')
+              p.write_text(s)
+          PY
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Verify web assets
+        run: test -f dist/index.html
+
+      - name: Build Debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Angel-Live-Firebase-Google-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
