@@ -1,0 +1,15 @@
+{
+  "methods": ["google", "apple", "x"],
+  "headline": "Angel Live",
+  "subtitle": "Sign in to continue",
+  "icon": "/resources/angel-live-logo.png",
+  "style": {
+    "mode": "light",
+    "accentColor": "#25b7ff",
+    "backgroundColor": "#eef7ff",
+    "panelColor": "#ffffff",
+    "textColor": "#172033",
+    "fontFamily": "Inter, system-ui, sans-serif",
+    "borderRadius": 24
+  }
+}
