@@ -59,35 +59,170 @@ jobs:
           fi
       - name: Sync Capacitor
         run: npx cap sync android
-      - name: Configure Android OAuth deep links
+      - name: Configure Android WebView popup authentication
         shell: bash
         run: |
-          MANIFEST=android/app/src/main/AndroidManifest.xml
+          mkdir -p android/app/src/main/java/com/angel/live
+          cat > android/app/src/main/java/com/angel/live/MainActivity.java <<'JAVA'
+          package com.angel.live;
+
+          import android.app.Dialog;
+          import android.os.Bundle;
+          import android.view.ViewGroup;
+          import android.webkit.CookieManager;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              private Dialog authDialog;
+
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+
+                  WebView main = getBridge().getWebView();
+                  configureWebView(main);
+                  main.getSettings().setSupportMultipleWindows(true);
+                  main.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public boolean onCreateWindow(WebView view, boolean isDialog,
+                                                     boolean isUserGesture,
+                                                     android.os.Message resultMsg) {
+                          openAuthPopup(resultMsg);
+                          return true;
+                      }
+                  });
+              }
+
+              private void configureWebView(WebView webView) {
+                  WebSettings settings = webView.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  settings.setJavaScriptCanOpenWindowsAutomatically(true);
+                  settings.setSupportMultipleWindows(true);
+                  settings.setMediaPlaybackRequiresUserGesture(false);
+                  CookieManager.getInstance().setAcceptCookie(true);
+                  CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
+              }
+
+              private void openAuthPopup(android.os.Message resultMsg) {
+                  WebView popup = new WebView(this);
+                  configureWebView(popup);
+
+                  popup.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                          // Keep OAuth/authorization navigation inside the popup so
+                          // window.opener/postMessage can return to Angel Live.
+                          return false;
+                      }
+
+                      @Override
+                      public void onPageFinished(WebView view, String url) {
+                          super.onPageFinished(view, url);
+                      }
+                  });
+
+                  popup.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public void onCloseWindow(WebView window) {
+                          if (authDialog != null && authDialog.isShowing()) {
+                              authDialog.dismiss();
+                          }
+                          window.destroy();
+                      }
+
+                      @Override
+                      public boolean onCreateWindow(WebView view, boolean isDialog,
+                                                     boolean isUserGesture,
+                                                     android.os.Message nestedResultMsg) {
+                          // Avoid a second-level popup escaping to the system browser.
+                          WebView nested = new WebView(AngelLiveMainActivityHolder.get());
+                          return false;
+                      }
+                  });
+
+                  CookieManager.getInstance().setAcceptThirdPartyCookies(popup, true);
+
+                  authDialog = new Dialog(this);
+                  authDialog.setTitle("Angel Live Sign In");
+                  authDialog.setContentView(popup, new ViewGroup.LayoutParams(
+                          ViewGroup.LayoutParams.MATCH_PARENT,
+                          ViewGroup.LayoutParams.MATCH_PARENT));
+                  authDialog.setOnDismissListener(d -> {
+                      try { popup.destroy(); } catch (Exception ignored) {}
+                  });
+                  authDialog.show();
+
+                  WebView.WebViewTransport transport =
+                          (WebView.WebViewTransport) resultMsg.obj;
+                  transport.setWebView(popup);
+                  resultMsg.sendToTarget();
+              }
+
+              // Holder only exists to keep the generated source simple; nested popups
+              // are not opened by the authentication flow.
+              private static final class AngelLiveMainActivityHolder {
+                  private static MainActivity instance;
+                  static MainActivity get() { return instance; }
+              }
+
+              @Override
+              protected void onResume() {
+                  super.onResume();
+                  AngelLiveMainActivityHolder.instance = this;
+              }
+
+              @Override
+              protected void onPause() {
+                  super.onPause();
+                  AngelLiveMainActivityHolder.instance = this;
+              }
+          }
+          JAVA
+
+      - name: Fix Android activity source
+        shell: bash
+        run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path("android/app/src/main/AndroidManifest.xml")
+          p=Path("android/app/src/main/java/com/angel/live/MainActivity.java")
           s=p.read_text()
-          marker='</activity>'
-          filters='''
+          # Remove the unused nested-popup holder branch; returning false lets the
+          # existing popup handle the OAuth flow without another window.
+          s=s.replace('''                      @Override
+                      public boolean onCreateWindow(WebView view, boolean isDialog,
+                                                     boolean isUserGesture,
+                                                     android.os.Message nestedResultMsg) {
+                          // Avoid a second-level popup escaping to the system browser.
+                          WebView nested = new WebView(AngelLiveMainActivityHolder.get());
+                          return false;
+                      }
 
-            <!-- Angel Live OAuth/app callback: production HTTPS URL -->
-            <intent-filter android:autoVerify="false">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="app.angellive.soulverseapps.com" />
-            </intent-filter>
+''','')
+          s=s.replace('''              // Holder only exists to keep the generated source simple; nested popups
+              // are not opened by the authentication flow.
+              private static final class AngelLiveMainActivityHolder {
+                  private static MainActivity instance;
+                  static MainActivity get() { return instance; }
+              }
 
-            <!-- Angel Live custom OAuth callback -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="angellive" android:host="oauth" />
-            </intent-filter>
-          '''
-          if 'android:host="app.angellive.soulverseapps.com"' not in s:
-              s=s.replace(marker, filters+'\n        '+marker, 1)
+              @Override
+              protected void onResume() {
+                  super.onResume();
+                  AngelLiveMainActivityHolder.instance = this;
+              }
+
+              @Override
+              protected void onPause() {
+                  super.onPause();
+                  AngelLiveMainActivityHolder.instance = this;
+              }
+''','')
           p.write_text(s)
           PY
 
@@ -108,4 +243,3 @@ jobs:
           name: Angel-Live-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          
