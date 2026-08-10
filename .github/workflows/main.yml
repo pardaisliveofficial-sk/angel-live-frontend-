@@ -25,119 +25,70 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Remove old native files
-        run: rm -rf android capacitor.config.ts capacitor.config.js
-
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Install Capacitor
-        run: |
-          npm install @capacitor/core@6.2.1 @capacitor/app@6.0.2 @capacitor/browser@6.0.4 --legacy-peer-deps
-          npm install --save-dev @capacitor/cli@6.2.1 @capacitor/android@6.2.1 typescript@5.7.2 --legacy-peer-deps
+      - name: Remove stale native project
+        run: rm -rf android
 
-      - name: Prepare web files
-        run: |
-          rm -rf dist
-          mkdir -p dist
-          printf '%s\n' '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Angel Live</title></head><body><script>location.replace("https://app.angellive.soulverseapps.com/");</script></body></html>' > dist/index.html
-          test -f dist/index.html
-
-      - name: Add Android
+      - name: Add Capacitor Android
         run: npx cap add android
 
-      - name: Configure Angel Live WebView
+      - name: Configure Android app
+        shell: bash
         run: |
-          mkdir -p android/app/src/main/java/com/angel/live
-          cat > android/app/src/main/java/com/angel/live/MainActivity.java <<'JAVA'
-          package com.angel.live;
+          set -e
+          APP_GRADLE=android/app/build.gradle
+          if ! grep -q "androidx.browser:browser" "$APP_GRADLE"; then
+            sed -i '/dependencies {/a\    implementation "androidx.browser:browser:1.8.0"' "$APP_GRADLE"
+          fi
+          mkdir -p android/app/src/main/java/com/soulverseapps/angellive
+          cat > android/app/src/main/java/com/soulverseapps/angellive/MainActivity.java <<'JAVA'
+          package com.soulverseapps.angellive;
 
-          import android.app.Dialog;
+          import android.content.Intent;
+          import android.net.Uri;
           import android.os.Bundle;
-          import android.view.ViewGroup;
-          import android.webkit.CookieManager;
-          import android.webkit.WebChromeClient;
-          import android.webkit.WebSettings;
-          import android.webkit.WebView;
-          import android.webkit.WebViewClient;
+          import androidx.browser.customtabs.CustomTabsIntent;
           import com.getcapacitor.BridgeActivity;
 
           public class MainActivity extends BridgeActivity {
-              private Dialog authDialog;
+              private static final String ANGEL_URL = "https://app.angellive.soulverseapps.com/";
+              private boolean openedBrowser = false;
 
               @Override
               public void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  WebView main = getBridge().getWebView();
-                  configure(main);
-                  main.setWebChromeClient(new AuthChromeClient());
+                  openAngelLive();
               }
 
-              private void configure(WebView w) {
-                  WebSettings s = w.getSettings();
-                  s.setJavaScriptEnabled(true);
-                  s.setDomStorageEnabled(true);
-                  s.setJavaScriptCanOpenWindowsAutomatically(true);
-                  s.setSupportMultipleWindows(true);
-                  s.setMediaPlaybackRequiresUserGesture(false);
-                  CookieManager c = CookieManager.getInstance();
-                  c.setAcceptCookie(true);
-                  c.setAcceptThirdPartyCookies(w, true);
-              }
-
-              private class AuthChromeClient extends WebChromeClient {
-                  @Override
-                  public boolean onCreateWindow(WebView view, boolean isDialog,
-                                                 boolean isUserGesture,
-                                                 android.os.Message resultMsg) {
-                      final WebView popup = new WebView(MainActivity.this);
-                      configure(popup);
-                      popup.setWebViewClient(new WebViewClient());
-                      popup.setWebChromeClient(new WebChromeClient() {
-                          @Override
-                          public void onCloseWindow(WebView window) {
-                              if (authDialog != null && authDialog.isShowing()) {
-                                  authDialog.dismiss();
-                              }
-                              window.destroy();
-                          }
-                      });
-
-                      authDialog = new Dialog(MainActivity.this);
-                      authDialog.setTitle("Angel Live Sign In");
-                      authDialog.setContentView(
-                          popup,
-                          new ViewGroup.LayoutParams(
-                              ViewGroup.LayoutParams.MATCH_PARENT,
-                              ViewGroup.LayoutParams.MATCH_PARENT
-                          )
-                      );
-                      authDialog.setOnDismissListener(d -> {
-                          try { popup.destroy(); } catch (Exception ignored) {}
-                      });
-                      authDialog.show();
-
-                      WebView.WebViewTransport transport =
-                          (WebView.WebViewTransport) resultMsg.obj;
-                      transport.setWebView(popup);
-                      resultMsg.sendToTarget();
-                      return true;
+              private void openAngelLive() {
+                  if (openedBrowser) return;
+                  openedBrowser = true;
+                  try {
+                      CustomTabsIntent intent = new CustomTabsIntent.Builder().build();
+                      intent.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      intent.launchUrl(this, Uri.parse(ANGEL_URL));
+                  } catch (Exception e) {
+                      Intent fallback = new Intent(Intent.ACTION_VIEW, Uri.parse(ANGEL_URL));
+                      startActivity(fallback);
                   }
               }
           }
           JAVA
 
-      - name: Add Android permissions
-        run: |
-          M=android/app/src/main/AndroidManifest.xml
-          grep -q 'android.permission.INTERNET' "$M" || sed -i '/<manifest /a <uses-permission android:name="android.permission.INTERNET" />' "$M"
-          grep -q 'android.permission.CAMERA' "$M" || sed -i '/<manifest /a <uses-permission android:name="android.permission.CAMERA" />' "$M"
-          grep -q 'android.permission.RECORD_AUDIO' "$M" || sed -i '/<manifest /a <uses-permission android:name="android.permission.RECORD_AUDIO" />' "$M"
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          grep -q 'android.permission.INTERNET' "$MANIFEST" || sed -i '/<manifest /a\    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST"
+          grep -q 'android.permission.CAMERA' "$MANIFEST" || sed -i '/<manifest /a\    <uses-permission android:name="android.permission.CAMERA" />' "$MANIFEST"
+          grep -q 'android.permission.RECORD_AUDIO' "$MANIFEST" || sed -i '/<manifest /a\    <uses-permission android:name="android.permission.RECORD_AUDIO" />' "$MANIFEST"
+
+      - name: Generate Angel Live icons and splash
+        run: npx capacitor-assets generate --android
 
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Build APK
+      - name: Build Debug APK
         working-directory: android
         run: |
           chmod +x gradlew
