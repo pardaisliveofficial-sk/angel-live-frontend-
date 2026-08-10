@@ -1,22 +1,17 @@
 {
-  "name": "angel-live-mobile",
+  "name": "angel-live-android",
   "private": true,
   "version": "1.0.0",
-  "scripts": {
-    "build": "node -e \"console.log('dist already prepared')\""
-  },
+  "type": "module",
+  "scripts": {"build":"node -e \"console.log('Angel Live remote shell ready')\""},
   "dependencies": {
-    "@capacitor/core": "6.2.1",
-    "@capacitor/cli": "6.2.1",
-    "@capacitor/android": "6.2.1",
-    "@capacitor/assets": "3.0.0",
-    "@capacitor/app": "6.0.2",
-    "@capacitor/browser": "6.0.4"
+    "@capacitor/core": "7.4.0",
+    "@capacitor/app": "7.0.1",
+    "@capacitor/browser": "7.0.2"
   },
   "devDependencies": {
-    "@capacitor/cli": "6.2.1",
-    "@capacitor/android": "6.2.1",
-    "@capacitor/assets": "^3.0.5",
-    "typescript": "5.7.2"
+    "@capacitor/cli": "7.4.0",
+    "@capacitor/android": "7.4.0",
+    "@capacitor/assets": "3.0.5"
   }
 }

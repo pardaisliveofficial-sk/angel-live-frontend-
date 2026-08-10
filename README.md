@@ -1,10 +1,9 @@
 # Angel Live Android
 
-This package wraps the production Angel Live web application:
-https://app.angellive.soulverseapps.com/
+This Android build is a native shell for the live Angel Live web application.
 
-The GitHub Actions workflow installs Capacitor, creates Android, generates the
-Angel Live icon/splash from resources/, syncs, and builds a debug APK.
+Production URL: https://app.angellive.soulverseapps.com/
 
-No TypeScript Capacitor config is used; capacitor.config.json avoids the
-previous "Could not find installation of Typescript" failure.
+The native shell uses an Android Custom Tab for authentication and the web app so Google/AppDeploy authentication runs in a normal browser context instead of an embedded WebView popup. This avoids the Android WebView popup/opener failure.
+
+The GitHub Actions workflow builds a debug APK and uploads it as an artifact.
